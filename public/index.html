@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flight Price Prediction</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Arial', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .container {
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        max-width: 600px;
+        width: 100%;
+        margin: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 2rem;
+        font-size: 2rem;
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #555;
+        font-weight: 600;
+      }
+
+      select, input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+      }
+
+      select:focus, input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      button {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .result {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 5px;
+        text-align: center;
+        display: none;
+      }
+
+      .result.show {
+        display: block;
+      }
+
+      .price {
+        font-size: 2rem;
+        color: #667eea;
+        font-weight: bold;
+        margin-top: 0.5rem;
+      }
+
+      .loading {
+        text-align: center;
+        color: #666;
+      }
+
+      .error {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 1rem;
+        border-radius: 5px;
+        margin-top: 1rem;
+        display: none;
+      }
+
+      .error.show {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Flight Price Prediction</h1>
+      <form id="predictionForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="airline">Airline</label>
+            <select id="airline" name="airline" required>
+              <option value="">Select Airline</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="source_city">Source City</label>
+            <select id="source_city" name="source_city" required>
+              <option value="">Select Source City</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="destination_city">Destination City</label>
+            <select id="destination_city" name="destination_city" required>
+              <option value="">Select Destination City</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="flight_class">Class</label>
+            <select id="flight_class" name="flight_class" required>
+              <option value="">Select Class</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="departure_time">Departure Time</label>
+            <select id="departure_time" name="departure_time" required>
+              <option value="">Select Departure Time</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="arrival_time">Arrival Time</label>
+            <select id="arrival_time" name="arrival_time" required>
+              <option value="">Select Arrival Time</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="stops">Stops</label>
+            <select id="stops" name="stops" required>
+              <option value="">Select Stops</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="days_left">Days Left</label>
+            <input type="number" id="days_left" name="days_left" min="1" max="50" required placeholder="1-50">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="duration">Duration (hours)</label>
+          <input type="number" id="duration" name="duration" step="0.1" min="0.1" required placeholder="e.g., 2.5">
+        </div>
+
+        <div class="form-group">
+          <label for="flight">Flight Number</label>
+          <input type="text" id="flight" name="flight" required placeholder="e.g., SG-8709">
+        </div>
+
+        <button type="submit">Predict Price</button>
+      </form>
+
+      <div class="loading" id="loading" style="display: none;">
+        Predicting price...
+      </div>
+
+      <div class="error" id="error"></div>
+
+      <div class="result" id="result">
+        <h2>Predicted Price</h2>
+        <div class="price" id="price"></div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = 'http://localhost:8000';
+
+      // Load dropdown options from API
+      async function loadOptions() {
+        try {
+          const [airlinesRes, citiesRes, classesRes, departureRes, arrivalRes, stopsRes] = await Promise.all([
+            fetch(`${API_BASE}/airlines`),
+            fetch(`${API_BASE}/cities`),
+            fetch(`${API_BASE}/classes`),
+            fetch(`${API_BASE}/departure_times`),
+            fetch(`${API_BASE}/arrival_times`),
+            fetch(`${API_BASE}/stops`)
+          ]);
+
+          const airlines = await airlinesRes.json();
+          const cities = await citiesRes.json();
+          const classes = await classesRes.json();
+          const departureTimes = await departureRes.json();
+          const arrivalTimes = await arrivalRes.json();
+          const stops = await stopsRes.json();
+
+          populateSelect('airline', airlines.airlines);
+          populateSelect('source_city', cities.cities);
+          populateSelect('destination_city', cities.cities);
+          populateSelect('flight_class', classes.classes);
+          populateSelect('departure_time', departureTimes.departure_times);
+          populateSelect('arrival_time', arrivalTimes.arrival_times);
+          populateSelect('stops', stops.stops);
+        } catch (error) {
+          showError('Failed to load options. Please make sure the API server is running.');
+        }
+      }
+
+      function populateSelect(id, options) {
+        const select = document.getElementById(id);
+        options.forEach(option => {
+          const optionElement = document.createElement('option');
+          optionElement.value = option;
+          optionElement.textContent = option;
+          select.appendChild(optionElement);
+        });
+      }
+
+      document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        
+        // Convert numeric fields
+        data.duration = parseFloat(data.duration);
+        data.days_left = parseInt(data.days_left);
+
+        showLoading(true);
+        hideError();
+        hideResult();
+
+        try {
+          const response = await fetch(`${API_BASE}/predict`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+          });
+
+          if (!response.ok) {
+            throw new Error('Prediction failed');
+          }
+
+          const result = await response.json();
+          showResult(result.predicted_price);
+        } catch (error) {
+          showError('Failed to predict price. Please try again.');
+        } finally {
+          showLoading(false);
+        }
+      });
+
+      function showLoading(show) {
+        document.getElementById('loading').style.display = show ? 'block' : 'none';
+        document.querySelector('button').disabled = show;
+      }
+
+      function showError(message) {
+        const errorElement = document.getElementById('error');
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+      }
+
+      function hideError() {
+        document.getElementById('error').classList.remove('show');
+      }
+
+      function showResult(price) {
+        document.getElementById('price').textContent = `₹${price.toFixed(2)}`;
+        document.getElementById('result').classList.add('show');
+      }
+
+      function hideResult() {
+        document.getElementById('result').classList.remove('show');
+      }
+
+      // Load options when page loads
+      loadOptions();
+    </script>
+  </body>
+</html>
